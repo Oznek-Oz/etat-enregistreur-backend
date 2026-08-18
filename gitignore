@@ -1,0 +1,16 @@
+# Dépendances (réinstallées via package.json)
+node_modules/
+
+# Secrets — NE JAMAIS committer un .env réel
+.env
+.env.local
+.env*.local
+
+# Vercel
+.vercel
+
+# Système
+.DS_Store
+
+# Signature manuscrite — jamais committée (dépôt public, risque de contrefaçon)
+signature.png
