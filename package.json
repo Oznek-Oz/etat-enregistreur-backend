@@ -1,0 +1,9 @@
+{
+  "name": "etat-enregistreur-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend minimal (fonction serverless) pour l'envoi par email du PDF d'état enregistreur FKYS, via Gmail SMTP.",
+  "dependencies": {
+    "nodemailer": "^6.9.14"
+  }
+}

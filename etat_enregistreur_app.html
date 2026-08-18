@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>État Enregistreur Yaoundé-NSI — Générateur & Envoi</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.3/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --navy: #0b2e4f;
+    --navy-deep: #071e36;
+    --steel: #4c6b8a;
+    --sky: #e8f0f7;
+    --paper: #ffffff;
+    --ink: #172431;
+    --muted: #64748b;
+    --amber: #c8791a;
+    --ok: #1f7a4d;
+    --err: #b3261e;
+    --line: #d6dee7;
+    --radius: 8px;
+    font-family: "Segoe UI", "Calibri", Arial, sans-serif;
+  }
+  *{ box-sizing: border-box; }
+  body{ margin:0; background: var(--sky); color: var(--ink); min-height:100vh; }
+  .topbar{
+    background: linear-gradient(135deg, var(--navy-deep), var(--navy));
+    color: #fff; padding: 18px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:10px;
+  }
+  .topbar .brand{ display:flex; flex-direction:column; gap:2px; }
+  .topbar .brand .tag{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#9db8d4; }
+  .topbar .brand h1{ margin:0; font-size:19px; font-weight:600; letter-spacing:.01em; }
+  .topbar .ref-pill{
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.25);
+    border-radius: 999px; padding: 7px 16px; font-size: 13px; font-variant-numeric: tabular-nums;
+  }
+
+  .layout{
+    display:grid; grid-template-columns: 400px 1fr; gap: 22px; padding: 22px;
+    align-items:start; max-width: 1440px; margin: 0 auto;
+  }
+  @media (max-width: 980px){ .layout{ grid-template-columns: 1fr; } }
+
+  .panel{ background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .panel + .panel{ margin-top: 18px; }
+  .panel h2{ margin: 0 0 4px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--navy); }
+  .panel .sub{ margin: 0 0 16px; font-size: 12.5px; color: var(--muted); }
+
+  .week-box{
+    background: var(--sky); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 18px; font-size: 13px; line-height: 1.7;
+  }
+  .week-box .row{ display:flex; justify-content:space-between; }
+  .week-box .row span:first-child{ color: var(--muted); }
+  .week-box .row span:last-child{ font-weight:600; font-variant-numeric: tabular-nums; }
+
+  fieldset{ border: none; padding: 0; margin: 0 0 18px; }
+  legend{ font-size: 12.5px; font-weight: 600; color: var(--navy); margin-bottom: 8px; padding: 0; }
+  .field{ margin-bottom: 12px; }
+  .field label{ display:block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  select, input[type=text], input[type=email], input[type=password], textarea{
+    width:100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px;
+    font-size: 13.5px; color: var(--ink); background: #fff; font-family: inherit; resize: vertical;
+  }
+  select:focus, input:focus, textarea:focus{ outline: 2px solid var(--steel); outline-offset: 1px; }
+  .custom-field{ margin-top: 8px; animation: reveal .15s ease-out; }
+  .custom-field.hidden{ display:none; }
+  @keyframes reveal{ from{ opacity:0; transform: translateY(-3px);} to{opacity:1; transform:none;} }
+  .required-mark{ color: var(--amber); }
+
+  .status-line{ display:flex; align-items:center; gap:7px; font-size:12.5px; margin-top: 4px; }
+  .status-dot{ width:8px; height:8px; border-radius:50%; background: var(--ok); flex-shrink:0; }
+  .status-dot.amber{ background: var(--amber); }
+  .status-dot.err{ background: var(--err); }
+
+  .btn{ width:100%; padding: 12px 14px; border-radius: 7px; border: none; font-size: 14px;
+    font-weight:600; cursor:pointer; transition: transform .05s ease, box-shadow .15s ease; }
+  .btn:active{ transform: translateY(1px); }
+  .btn-primary{ background: var(--navy); color:#fff; }
+  .btn-primary:hover{ background: var(--navy-deep); }
+  .btn-primary:disabled{ background: #a7b6c6; cursor:not-allowed; }
+  .btn-ghost{ background: transparent; border: 1px solid var(--line); color: var(--navy); margin-top: 8px; }
+  .btn-ghost:hover{ background: var(--sky); }
+
+  .error-banner{
+    background:#fdecea; border:1px solid #f3b6ae; color:#8a2b1f; font-size:12.5px;
+    padding: 9px 11px; border-radius:6px; margin-bottom: 14px; display:none;
+  }
+  .error-banner.show{ display:block; }
+  .success-banner{
+    background:#eaf7ef; border:1px solid #a9dcc0; color:#155c36; font-size:12.5px;
+    padding: 9px 11px; border-radius:6px; margin-bottom: 14px; display:none;
+  }
+  .success-banner.show{ display:block; }
+
+  details.advanced{ border: 1px solid var(--line); border-radius: 7px; padding: 10px 12px; margin-top: 4px; }
+  details.advanced summary{ cursor:pointer; font-size: 12.5px; font-weight:600; color: var(--navy); }
+  details.advanced .field{ margin-top: 12px; }
+  details.advanced p.hint{ font-size: 11.5px; color: var(--muted); margin: 8px 0 0; line-height:1.5; }
+  p.hint{ font-size: 11.5px; color: var(--muted); line-height:1.5; }
+
+  .saved-tag{ font-size:11px; color: var(--ok); opacity:0; transition: opacity .3s ease; margin-left:6px; }
+  .saved-tag.show{ opacity:1; }
+
+  .doc-wrap{ background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; overflow-x:auto; }
+  .doc-wrap .doc-toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; flex-wrap:wrap; gap:10px; }
+  .doc-toolbar h2{ margin:0; font-size:13px; color:var(--muted); font-weight:600; letter-spacing:.05em; text-transform:uppercase;}
+
+  #document{ width: 980px; max-width:100%; margin: 0 auto; background:#fff; padding: 40px 46px; font-family: "Calibri", Arial, sans-serif; color:#000; }
+  .doc-header{ text-align:center; font-weight:bold; line-height:1.5; }
+  .doc-header .asecna, .doc-header .aerodrome{ font-size: 15px; }
+  .doc-header .titre{ font-style: italic; font-size: 14px; margin-top: 8px; margin-bottom: 22px; }
+  table.etat{ width:100%; border-collapse: collapse; font-weight:bold; font-style: italic; font-size: 12px; margin-top: 8px; }
+  table.etat th, table.etat td{ border: 1px solid #000; padding: 10px 11px; text-align:center; vertical-align:middle; }
+  table.etat th{ background:#f2f2f2; font-style:normal; }
+  .doc-footer{ margin-top: 55px; text-align: right; font-weight:bold; font-size: 12px; }
+  .signataires{ display:flex; justify-content:space-between; margin-top: 26px; }
+  .signataires .bloc{ text-align:center; width:46%; }
+  .signataires .bloc .titre-poste{ font-weight:bold; font-size:12px; margin-bottom: 10px; }
+  .sig-slot{ height: 90px; display:flex; align-items:center; justify-content:center; }
+  .sig-slot img{ max-height: 90px; max-width: 220px; object-fit: contain; }
+  .sig-slot .placeholder{
+    border: 1.5px dashed #b7c2cd; border-radius: 6px; width: 100%; height: 100%;
+    display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size: 10.5px;
+    font-style: normal; font-weight:normal; letter-spacing:.02em; text-align:center; padding: 4px 8px;
+  }
+
+  footer.app-footer{ text-align:center; font-size:11.5px; color:var(--muted); padding: 6px 22px 26px; }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="tag">ASECNA · Cameroun</span>
+      <h1>État Enregistreur — Yaoundé-Nsimalen</h1>
+    </div>
+    <div class="ref-pill">Réf. semaine : <strong id="ref-pill-text">—</strong></div>
+  </div>
+
+  <div class="layout">
+
+    <!-- LEFT COLUMN -->
+    <div>
+      <div class="panel">
+        <h2>Paramètres du rapport</h2>
+        <p class="sub">La semaine, les dates et la référence sont calculées automatiquement.</p>
+
+        <div class="week-box" id="week-box">
+          <div class="row"><span>Référence</span><span id="wb-ref">—</span></div>
+          <div class="row"><span>Semaine ISO</span><span id="wb-week">—</span></div>
+          <div class="row"><span>Année ISO</span><span id="wb-year">—</span></div>
+          <div class="row"><span>Période</span><span id="wb-period">—</span></div>
+          <div class="row"><span>Fichier PDF</span><span id="wb-file">—</span></div>
+        </div>
+
+        <div class="error-banner" id="error-banner"></div>
+        <div class="success-banner" id="success-banner"></div>
+
+        <fieldset>
+          <legend>État enregistreur NORMAL</legend>
+          <div class="field">
+            <label for="normal-select">Valeur</label>
+            <select id="normal-select">
+              <option value="OK">OK</option>
+              <option value="AUTRE">Autre valeur</option>
+            </select>
+          </div>
+          <div class="custom-field hidden" id="normal-custom-wrap">
+            <label for="normal-custom">Valeur personnalisée NORMAL <span class="required-mark">*</span></label>
+            <input type="text" id="normal-custom" placeholder="Ex : HORS SERVICE">
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>État enregistreur SECOURS</legend>
+          <div class="field">
+            <label for="secours-select">Valeur</label>
+            <select id="secours-select">
+              <option value="OK">OK</option>
+              <option value="AUTRE">Autre valeur</option>
+            </select>
+          </div>
+          <div class="custom-field hidden" id="secours-custom-wrap">
+            <label for="secours-custom">Valeur personnalisée SECOURS <span class="required-mark">*</span></label>
+            <input type="text" id="secours-custom" placeholder="Ex : EN PANNE">
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Signature (Chef Unité MIRE)</legend>
+          <div class="status-line">
+            <span class="status-dot amber" id="sig-status-dot"></span>
+            <span id="sig-status-text">Recherche de signature.png dans le dossier de l'application…</span>
+          </div>
+          <p class="hint" style="margin-top:8px;">
+            Placez un fichier nommé <code>signature.png</code> dans le même dossier que ce fichier HTML —
+            il sera intégré automatiquement dans le document, sans aucune manipulation dans l'application.
+          </p>
+        </fieldset>
+      </div>
+
+      <!-- EMAIL SETTINGS PANEL -->
+      <div class="panel">
+        <h2>Paramétrage de l'envoi <span class="saved-tag" id="saved-tag">Enregistré ✓</span></h2>
+        <p class="sub">L'expéditeur est le compte Gmail du Chef Unité MIRE, configuré côté backend. Le destinataire est mémorisé sur cet appareil — modifiable à tout moment.</p>
+
+        <div class="field">
+          <label for="recipient-email">Email du destinataire</label>
+          <input type="email" id="recipient-email" placeholder="destinataire@gmail.com">
+        </div>
+        <div class="field">
+          <label for="mail-subject">Objet du mail</label>
+          <input type="text" id="mail-subject" placeholder="OBJET">
+        </div>
+        <div class="field">
+          <label for="mail-message">Message du mail</label>
+          <textarea id="mail-message" rows="4" placeholder="MESSAGE"></textarea>
+        </div>
+
+        <details class="advanced">
+          <summary>Configuration technique (backend d'envoi) — à faire une seule fois</summary>
+          <div class="field">
+            <label for="backend-url">URL du backend</label>
+            <input type="text" id="backend-url" placeholder="ex : https://votre-projet.vercel.app/api/send-report">
+          </div>
+          <div class="field">
+            <label for="backend-api-key">Clé API</label>
+            <input type="password" id="backend-api-key" placeholder="clé secrète du backend">
+          </div>
+          <p class="hint">
+            L'envoi passe par un petit backend déployé une seule fois (voir <code>backend/README.md</code>),
+            qui envoie l'email via le compte Gmail du Chef Unité MIRE en pièce jointe — sans limite de
+            "plan" et sans abonnement. La clé API protège l'accès au backend : gardez-la secrète.
+          </p>
+        </details>
+      </div>
+
+
+      <button class="btn btn-primary" id="send-btn">Envoyer le PDF</button>
+      <button class="btn btn-ghost" id="download-btn">Télécharger le PDF (secours)</button>
+      <button class="btn btn-ghost" id="reset-btn">Réinitialiser le formulaire</button>
+    </div>
+
+    <!-- DOCUMENT PREVIEW -->
+    <div class="doc-wrap">
+      <div class="doc-toolbar">
+        <h2>Aperçu du document</h2>
+      </div>
+
+      <div id="document">
+        <div class="doc-header">
+          <div class="asecna">ASECNA / CAMEROUN</div>
+          <div class="aerodrome">AERODROME DE YAOUNDE–NSIMALEN</div>
+          <div class="titre" id="doc-titre">
+            ÉTAT DU SYSTÈME D'ENREGISTREMENT ET DE RELECTURE DES COMMUNICATIONS FKYS
+            DE LA SEMAINE …/… ALLANT DU … AU …
+          </div>
+        </div>
+
+        <table class="etat">
+          <thead>
+            <tr>
+              <th>SITE</th>
+              <th>TYPE ENREGISTREUR</th>
+              <th>ÉTAT ENREGISTREUR</th>
+              <th>ÉTAT DE RELECTURE DES COMMUNICATIONS</th>
+              <th>OBSERVATIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td rowspan="2">Yaoundé-Nsimalen</td>
+              <td rowspan="2">EVENTIDE NEXLOG DX SERIES</td>
+              <td id="doc-normal">ENREGISTREUR NORMAL : OK</td>
+              <td rowspan="2">Relecture en réseau sur le PC de relecture installé dans le bureau du Chef Unité ENF.</td>
+              <td rowspan="2">- Synchro Horaire : OK</td>
+            </tr>
+            <tr>
+              <td id="doc-secours">ENREGISTREUR SECOURS : OK</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="doc-footer" id="doc-fait-le">Fait à Yaoundé, le …</div>
+
+        <div class="signataires">
+          <div class="bloc">
+            <div class="titre-poste">Le Chef Unité ENF</div>
+            <div class="sig-slot"></div>
+          </div>
+          <div class="bloc">
+            <div class="titre-poste">Le Chef Unité MIRE</div>
+            <div class="sig-slot" id="sig-slot">
+              <img id="sig-image" src="signature.png" alt="Signature Chef Unité MIRE" style="display:none;">
+              <div class="placeholder" id="sig-placeholder">Emplacement signature<br>(signature.png)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  </div>
+
+  <footer class="app-footer">
+    Application locale — les paramètres d'envoi sont mémorisés uniquement sur cet appareil (aucun serveur, aucune base de données).
+    Le calcul de la semaine suit la norme ISO 8601.
+  </footer>
+
+<script>
+(function(){
+
+  const SETTINGS_KEY = 'etatEnregistreurSettings_v1';
+
+  // ---------- ISO week / previous week calculation ----------
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function fmtDate(d){ return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`; }
+
+  function getISOWeekYear(date){
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = (d.getUTCDay() + 6) % 7;
+    d.setUTCDate(d.getUTCDate() - dayNum + 3);
+    const isoYear = d.getUTCFullYear();
+    const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+    const isoWeek = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return { isoYear, isoWeek };
+  }
+
+  function getPreviousWeekInfo(referenceDate){
+    referenceDate = referenceDate || new Date();
+    const d = new Date(referenceDate);
+    d.setHours(0,0,0,0);
+    const day = d.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    const thisMonday = new Date(d);
+    thisMonday.setDate(d.getDate() + diffToMonday);
+
+    const prevMonday = new Date(thisMonday);
+    prevMonday.setDate(thisMonday.getDate() - 7);
+    const prevSunday = new Date(prevMonday);
+    prevSunday.setDate(prevMonday.getDate() + 6);
+    const dayAfterEnd = new Date(prevSunday);
+    dayAfterEnd.setDate(prevSunday.getDate() + 1);
+
+    const { isoYear, isoWeek } = getISOWeekYear(prevMonday);
+    const reference = `FKYS-${isoYear}-S${pad2(isoWeek)}`;
+    const filename = `${reference}.pdf`;
+
+    return { startDate: prevMonday, endDate: prevSunday, dayAfterEnd, isoWeek, isoYear, reference, filename };
+  }
+
+  const week = getPreviousWeekInfo();
+
+  const els = {
+    normalSelect: document.getElementById('normal-select'),
+    normalCustomWrap: document.getElementById('normal-custom-wrap'),
+    normalCustom: document.getElementById('normal-custom'),
+    secoursSelect: document.getElementById('secours-select'),
+    secoursCustomWrap: document.getElementById('secours-custom-wrap'),
+    secoursCustom: document.getElementById('secours-custom'),
+    sigStatusDot: document.getElementById('sig-status-dot'),
+    sigStatusText: document.getElementById('sig-status-text'),
+    sigImage: document.getElementById('sig-image'),
+    sigPlaceholder: document.getElementById('sig-placeholder'),
+    sendBtn: document.getElementById('send-btn'),
+    downloadBtn: document.getElementById('download-btn'),
+    resetBtn: document.getElementById('reset-btn'),
+    errorBanner: document.getElementById('error-banner'),
+    successBanner: document.getElementById('success-banner'),
+    refPill: document.getElementById('ref-pill-text'),
+    wbRef: document.getElementById('wb-ref'),
+    wbWeek: document.getElementById('wb-week'),
+    wbYear: document.getElementById('wb-year'),
+    wbPeriod: document.getElementById('wb-period'),
+    wbFile: document.getElementById('wb-file'),
+    docTitre: document.getElementById('doc-titre'),
+    docNormal: document.getElementById('doc-normal'),
+    docSecours: document.getElementById('doc-secours'),
+    docFaitLe: document.getElementById('doc-fait-le'),
+    recipientEmail: document.getElementById('recipient-email'),
+    mailSubject: document.getElementById('mail-subject'),
+    mailMessage: document.getElementById('mail-message'),
+    backendUrl: document.getElementById('backend-url'),
+    backendApiKey: document.getElementById('backend-api-key'),
+    savedTag: document.getElementById('saved-tag'),
+  };
+
+  let signatureLoaded = false;
+
+  // ---------- Signature: auto-detect signature.png next to this file ----------
+  function initSignature(){
+    els.sigImage.onload = () => {
+      signatureLoaded = true;
+      els.sigImage.style.display = '';
+      els.sigPlaceholder.style.display = 'none';
+      els.sigStatusDot.classList.remove('amber');
+      els.sigStatusDot.classList.remove('err');
+      els.sigStatusText.textContent = 'signature.png trouvée et intégrée au document.';
+    };
+    els.sigImage.onerror = () => {
+      signatureLoaded = false;
+      els.sigImage.style.display = 'none';
+      els.sigPlaceholder.style.display = '';
+      els.sigStatusDot.classList.add('amber');
+      els.sigStatusText.textContent = 'signature.png introuvable dans ce dossier — placez-la à côté du fichier HTML, puis actualisez la page.';
+    };
+  }
+  initSignature();
+
+  // ---------- Settings persistence (localStorage) ----------
+  function loadSettings(){
+    let s = {};
+    try{ s = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }catch(e){ s = {}; }
+    els.recipientEmail.value = s.recipientEmail || 'destinataire@gmail.com';
+    els.mailSubject.value = s.mailSubject || 'OBJET';
+    els.mailMessage.value = s.mailMessage || 'MESSAGE';
+    els.backendUrl.value = s.backendUrl || '';
+    els.backendApiKey.value = s.backendApiKey || '';
+  }
+
+  let saveTimer = null;
+  function saveSettings(){
+    const s = {
+      recipientEmail: els.recipientEmail.value.trim(),
+      mailSubject: els.mailSubject.value,
+      mailMessage: els.mailMessage.value,
+      backendUrl: els.backendUrl.value.trim(),
+      backendApiKey: els.backendApiKey.value.trim(),
+    };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    els.savedTag.classList.add('show');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => els.savedTag.classList.remove('show'), 1500);
+  }
+
+  [els.recipientEmail, els.mailSubject, els.mailMessage,
+   els.backendUrl, els.backendApiKey].forEach(inp => {
+    inp.addEventListener('change', saveSettings);
+    inp.addEventListener('blur', saveSettings);
+  });
+
+  loadSettings();
+
+  // ---------- Fill week info ----------
+  els.refPill.textContent = week.reference;
+  els.wbRef.textContent = week.reference;
+  els.wbWeek.textContent = pad2(week.isoWeek);
+  els.wbYear.textContent = week.isoYear;
+  els.wbPeriod.textContent = `${fmtDate(week.startDate)} → ${fmtDate(week.endDate)}`;
+  els.wbFile.textContent = week.filename;
+
+  els.docTitre.textContent =
+    `ÉTAT DU SYSTÈME D'ENREGISTREMENT ET DE RELECTURE DES COMMUNICATIONS FKYS ` +
+    `DE LA SEMAINE ${pad2(week.isoWeek)}/${week.isoYear} ALLANT DU ${fmtDate(week.startDate)} AU ${fmtDate(week.endDate)}`;
+  els.docFaitLe.textContent = `Fait à Yaoundé, le ${fmtDate(week.dayAfterEnd)}`;
+
+  // ---------- Conditional custom fields ----------
+  function toggleCustom(select, wrap){ wrap.classList.toggle('hidden', select.value !== 'AUTRE'); }
+  els.normalSelect.addEventListener('change', () => { toggleCustom(els.normalSelect, els.normalCustomWrap); refreshDoc(); });
+  els.secoursSelect.addEventListener('change', () => { toggleCustom(els.secoursSelect, els.secoursCustomWrap); refreshDoc(); });
+  [els.normalCustom, els.secoursCustom].forEach(inp => inp.addEventListener('input', refreshDoc));
+
+  // ---------- Validation ----------
+  function showError(msg){
+    els.errorBanner.textContent = msg;
+    els.errorBanner.classList.toggle('show', !!msg);
+    if(msg) els.successBanner.classList.remove('show');
+  }
+  function showSuccess(msg){
+    els.successBanner.textContent = msg;
+    els.successBanner.classList.toggle('show', !!msg);
+    if(msg) els.errorBanner.classList.remove('show');
+  }
+
+  function validateEtat(){
+    if(els.normalSelect.value === 'AUTRE' && !els.normalCustom.value.trim()){
+      return 'Merci de saisir la valeur personnalisée pour l\u2019état NORMAL.';
+    }
+    if(els.secoursSelect.value === 'AUTRE' && !els.secoursCustom.value.trim()){
+      return 'Merci de saisir la valeur personnalisée pour l\u2019état SECOURS.';
+    }
+    return '';
+  }
+
+  function validateSendSettings(){
+    if(!els.recipientEmail.value.trim()) return 'Merci de renseigner l\u2019email du destinataire (paramétrage de l\u2019envoi).';
+    if(!els.backendUrl.value.trim() || !els.backendApiKey.value.trim()){
+      return 'Configuration du backend incomplète (URL / Clé API) — voir "Configuration technique".';
+    }
+    return '';
+  }
+
+  // ---------- Refresh document preview ----------
+  function currentEtat(select, customInput){
+    return select.value === 'AUTRE' ? (customInput.value.trim() || '…') : 'OK';
+  }
+  function refreshDoc(){
+    const etatNormal = currentEtat(els.normalSelect, els.normalCustom);
+    const etatSecours = currentEtat(els.secoursSelect, els.secoursCustom);
+    els.docNormal.textContent = `ENREGISTREUR NORMAL : ${etatNormal}`;
+    els.docSecours.textContent = `ENREGISTREUR SECOURS : ${etatSecours}`;
+    showError('');
+  }
+  toggleCustom(els.normalSelect, els.normalCustomWrap);
+  toggleCustom(els.secoursSelect, els.secoursCustomWrap);
+  refreshDoc();
+
+  // ---------- Reset ----------
+  els.resetBtn.addEventListener('click', () => {
+    els.normalSelect.value = 'OK';
+    els.secoursSelect.value = 'OK';
+    els.normalCustom.value = '';
+    els.secoursCustom.value = '';
+    toggleCustom(els.normalSelect, els.normalCustomWrap);
+    toggleCustom(els.secoursSelect, els.secoursCustomWrap);
+    refreshDoc();
+    showSuccess('');
+  });
+
+  // ---------- Build PDF (vector, not a screenshot) ----------
+  // On génère un vrai PDF texte via jsPDF + autoTable, au lieu de rasteriser le HTML
+  // avec html2canvas. Un PDF vectoriel d'une page pèse quelques dizaines de Ko contre
+  // plusieurs centaines de Ko (voire plus) pour une capture d'écran encodée en JPEG —
+  // c'est ce qui permet de rester largement sous la limite de payload du backend (voir plus bas).
+  const PDF_MARGIN = 40;
+
+  // Convertit l'image de signature déjà chargée dans le DOM en dataURL PNG, pour
+  // l'intégrer au PDF. Peut échouer si le canvas est "tainted" (restrictions de sécurité
+  // liées à file:// ou à une origine différente) — dans ce cas on dégrade proprement
+  // vers un simple encart réservé plutôt que de faire échouer toute la génération.
+  function getSignatureDataUrl(){
+    if(!signatureLoaded) return null;
+    try{
+      const img = els.sigImage;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      return canvas.toDataURL('image/png');
+    } catch(e){
+      console.warn('Signature non intégrable au PDF (canvas restreint) :', e);
+      return null;
+    }
+  }
+
+  function buildDocPdf(){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const contentWidth = pageWidth - PDF_MARGIN * 2;
+    let y = PDF_MARGIN;
+
+    // -- En-tête --
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('ASECNA / CAMEROUN', pageWidth / 2, y, { align: 'center' }); y += 17;
+    doc.text('AERODROME DE YAOUNDE\u2013NSIMALEN', pageWidth / 2, y, { align: 'center' }); y += 20;
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(11);
+    const titre = els.docTitre.textContent.replace(/\s+/g, ' ').trim();
+    doc.splitTextToSize(titre, contentWidth).forEach(line => {
+      doc.text(line, pageWidth / 2, y, { align: 'center' });
+      y += 15;
+    });
+    y += 10;
+
+    // -- Tableau --
+    const etatNormal = currentEtat(els.normalSelect, els.normalCustom);
+    const etatSecours = currentEtat(els.secoursSelect, els.secoursCustom);
+    const spanCell = { rowSpan: 2, styles: { valign: 'middle' } };
+
+    doc.autoTable({
+      startY: y,
+      margin: { left: PDF_MARGIN, right: PDF_MARGIN },
+      styles: {
+        font: 'helvetica', fontStyle: 'bolditalic', fontSize: 9,
+        halign: 'center', valign: 'middle', textColor: [0, 0, 0],
+        lineColor: [0, 0, 0], lineWidth: 0.75, cellPadding: 8,
+      },
+      headStyles: {
+        fillColor: [242, 242, 242], textColor: [0, 0, 0], fontStyle: 'bold',
+        lineColor: [0, 0, 0], lineWidth: 0.75,
+      },
+      head: [['SITE', 'TYPE ENREGISTREUR', 'ÉTAT ENREGISTREUR', 'ÉTAT DE RELECTURE DES COMMUNICATIONS', 'OBSERVATIONS']],
+      body: [
+        [
+          { content: 'Yaoundé-Nsimalen', ...spanCell },
+          { content: 'EVENTIDE NEXLOG DX SERIES', ...spanCell },
+          `ENREGISTREUR NORMAL : ${etatNormal}`,
+          { content: 'Relecture en réseau sur le PC de relecture installé dans le bureau du Chef Unité ENF.', ...spanCell },
+          { content: '- Synchro Horaire : OK', ...spanCell },
+        ],
+        [`ENREGISTREUR SECOURS : ${etatSecours}`],
+      ],
+    });
+
+    y = doc.lastAutoTable.finalY + 45;
+
+    // -- Pied : date --
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(els.docFaitLe.textContent, pageWidth - PDF_MARGIN, y, { align: 'right' });
+    y += 40;
+
+    // -- Signataires --
+    const colWidth = contentWidth * 0.46;
+    const leftX = PDF_MARGIN;
+    const rightX = pageWidth - PDF_MARGIN - colWidth;
+    const slotHeight = 70;
+
+    doc.setFontSize(11);
+    doc.text('Le Chef Unité ENF', leftX + colWidth / 2, y, { align: 'center' });
+    doc.text('Le Chef Unité MIRE', rightX + colWidth / 2, y, { align: 'center' });
+    const slotY = y + 16;
+
+    const sigData = getSignatureDataUrl();
+    if(sigData){
+      const maxW = colWidth * 0.6, maxH = slotHeight;
+      const ratio = els.sigImage.naturalWidth / els.sigImage.naturalHeight;
+      let w = maxW, h = w / ratio;
+      if(h > maxH){ h = maxH; w = h * ratio; }
+      doc.addImage(sigData, 'PNG', rightX + (colWidth - w) / 2, slotY, w, h);
+    } else {
+      doc.setDrawColor(183, 194, 205);
+      doc.setLineDashPattern([3, 2], 0);
+      doc.rect(rightX + colWidth * 0.2, slotY, colWidth * 0.6, slotHeight);
+      doc.setLineDashPattern([], 0);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Emplacement signature', rightX + colWidth / 2, slotY + slotHeight / 2 - 4, { align: 'center' });
+      doc.text('(signature.png)', rightX + colWidth / 2, slotY + slotHeight / 2 + 6, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+    }
+
+    return doc;
+  }
+
+  async function buildPdfBlob(){
+    return buildDocPdf().output('blob');
+  }
+
+  // ---------- Download (backup) ----------
+  els.downloadBtn.addEventListener('click', async () => {
+    const err = validateEtat();
+    if(err){ showError(err); return; }
+    els.downloadBtn.disabled = true;
+    const original = els.downloadBtn.textContent;
+    els.downloadBtn.textContent = 'Génération en cours…';
+    try{
+      const blob = await buildPdfBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = week.filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch(e){
+      showError('Erreur lors de la génération du PDF : ' + e.message);
+    } finally {
+      els.downloadBtn.disabled = false;
+      els.downloadBtn.textContent = original;
+    }
+  });
+
+  // ---------- Helper: Blob -> raw base64 (no data: prefix) ----------
+  function blobToBase64(blob){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result; // "data:application/pdf;base64,XXXX"
+        resolve(result.substring(result.indexOf(',') + 1));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // ---------- Send by email (via le backend maison) ----------
+  els.sendBtn.addEventListener('click', async () => {
+    const etatErr = validateEtat();
+    if(etatErr){ showError(etatErr); return; }
+    const settingsErr = validateSendSettings();
+    if(settingsErr){ showError(settingsErr); return; }
+
+    els.sendBtn.disabled = true;
+    const original = els.sendBtn.textContent;
+    els.sendBtn.textContent = 'Génération du PDF…';
+    showError(''); showSuccess('');
+
+    try{
+      const blob = await buildPdfBlob();
+      const base64Pdf = await blobToBase64(blob);
+
+      // Garde-fou local : Vercel plafonne toute requête à 4,5 Mo, de façon fixe.
+      // On échoue vite et clairement plutôt que de laisser partir une requête
+      // vouée à un 413 générique côté serveur.
+      const attachmentSizeMb = (base64Pdf.length * 0.75) / (1024 * 1024);
+      if(attachmentSizeMb > 3){
+        throw new Error(`Le PDF généré fait environ ${attachmentSizeMb.toFixed(1)} Mo, au-delà de la limite de 3 Mo du backend.`);
+      }
+
+      const toEmail = els.recipientEmail.value.trim();
+      const backendUrl = els.backendUrl.value.trim();
+
+      els.sendBtn.textContent = 'Envoi en cours…';
+
+      let response;
+      try{
+        response = await fetch(backendUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': els.backendApiKey.value.trim(),
+          },
+          body: JSON.stringify({
+            to_email: toEmail,
+            subject: els.mailSubject.value || 'OBJET',
+            message: els.mailMessage.value || 'MESSAGE',
+            reference: week.reference,
+            periode: `${fmtDate(week.startDate)} → ${fmtDate(week.endDate)}`,
+            pdf_base64: base64Pdf,
+            pdf_filename: week.filename,
+          }),
+        });
+      } catch(networkErr){
+        // fetch() rejette uniquement en cas d'échec réseau (backend injoignable,
+        // URL invalide, CORS, hors-ligne...) — jamais pour un statut HTTP d'erreur.
+        throw new Error('Backend injoignable : vérifiez l\u2019URL configurée et votre connexion. (' + networkErr.message + ')');
+      }
+
+      let payload = null;
+      try{ payload = await response.json(); } catch(e){ /* réponse non-JSON, ignoré */ }
+
+      if(!response.ok || !payload || !payload.ok){
+        const serverMsg = (payload && payload.error) ? payload.error : `HTTP ${response.status}`;
+        throw new Error(serverMsg);
+      }
+
+      showSuccess(`PDF envoyé à ${toEmail} (référence ${week.reference}).`);
+    } catch(e){
+      // Toujours logguer l'erreur brute en console : c'est la façon la plus fiable
+      // de diagnostiquer un échec (ouvrir les outils de développement, onglet Console).
+      console.error('Échec de l\u2019envoi :', e);
+      const detail = (e && e.message) ? e.message : String(e);
+      showError('Erreur lors de l\u2019envoi : ' + detail);
+      els.errorBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } finally {
+      els.sendBtn.disabled = false;
+      els.sendBtn.textContent = original;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
