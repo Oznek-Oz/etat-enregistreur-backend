@@ -461,7 +461,7 @@
     let s = {};
     try{ s = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }catch(e){ s = {}; }
     els.recipientEmail.value = s.recipientEmail || 'destinataire@gmail.com';
-    els.mailSubject.value = s.reference || '';
+    els.mailSubject.value = reference || '';
     els.mailMessage.value = s.mailMessage || 'MESSAGE';
     els.backendUrl.value = s.backendUrl || '';
     els.backendApiKey.value = s.backendApiKey || '';
