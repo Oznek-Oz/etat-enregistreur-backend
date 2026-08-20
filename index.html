@@ -345,7 +345,7 @@
     dayAfterEnd.setDate(prevSunday.getDate() + 1);
 
     const { isoYear, isoWeek } = getISOWeekYear(prevMonday);
-    const reference = `FKYS-${isoYear}-S${pad2(isoWeek)}`;
+    const reference = `Etat Enregistreur Yaoundé-NSI Semaine ${pad2(isoWeek)}_${isoYear} du ${fmtDate(prevMonday)} au ${fmtDate(prevSunday)}`;
     const filename = `${reference}.pdf`;
 
     return { startDate: prevMonday, endDate: prevSunday, dayAfterEnd, isoWeek, isoYear, reference, filename };
